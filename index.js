@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2024 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2024-2025 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -57,6 +57,7 @@ let debug;
  * @param {completeCallback} cb Queue completion callback
  */
 async function doFetch(queues, cb) {
+    let finish;
     let n = Math.min(nworker, queues.length);
     const workers = [];
     const adjustWorker = () => {
@@ -72,6 +73,7 @@ async function doFetch(queues, cb) {
         while (workers.length < n) {
             startWorker();
         }
+        return workers.length > 0;
     }
     const startWorker = () => {
         const worker = () => {
@@ -100,20 +102,23 @@ async function doFetch(queues, cb) {
                     })
             } else {
                 workers.splice(workers.indexOf(worker), 1);
+                if (workers.length === 0) {
+                    (function f() {
+                        if (typeof finish === 'function') {
+                            finish();
+                        } else {
+                            process.nextTick(f);
+                        }
+                    })();
+                }
             }
         }
         workers.push(worker);
         worker();
     }
-    createWorker();
-    await new Promise(resolve => {
-        const interval = setInterval(() => {
-            if (workers.length === 0) {
-                clearInterval(interval);
-                resolve();
-            }
-        }, 500);
-    });
+    if (createWorker()) {
+        await new Promise(resolve => finish = resolve);
+    }
 }
 
 Object.assign(doFetch, {

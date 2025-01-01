@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2024 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2024-2025 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -71,6 +71,10 @@ test('fluent interface', async (t) => {
     });
 });
 test('simple url queuing', async (t) => {
+    await t.test('empty queue', async () => {
+        await doFetch([], (url, res) => {});
+        assert.ok(true, 'fetch can process empty queue');
+    });
     await t.test('fetch queues', async () => {
         const result = [];
         await doFetch(['https://example.com/foo', 'https://example.com/bar'], (url, res) => {
