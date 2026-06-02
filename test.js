@@ -80,7 +80,10 @@ test('simple url queuing', async (t) => {
     });
     await t.test('fetch queues', async () => {
         const result = [];
-        await doFetch(['https://example.com/foo', 'https://example.com/bar'], (url, res) => {
+        await doFetch([
+            'https://example.com/foo',
+            'https://example.com/bar',
+        ], (url, res) => {
             result.push(res);
         });
         assert.strictEqual(result.length, 2);
@@ -101,8 +104,10 @@ test('simple url queuing', async (t) => {
     });
     await t.test('check result set to true skip empty response', async () => {
         const result = [];
-        doFetch.setCheckResult(true);
-        await doFetch(['https://example.com/check?res=true', 'https://example.com/check?res=false'], (url, res) => {
+        await doFetch([
+            'https://example.com/check?res=true',
+            'https://example.com/check?res=false',
+        ], {checkResult: true}, (url, res) => {
             result.push(res);
         });
         assert.strictEqual(result.length, 1);
@@ -110,8 +115,10 @@ test('simple url queuing', async (t) => {
     });
     await t.test('check result set to false include empty response', async () => {
         const result = [];
-        doFetch.setCheckResult(false);
-        await doFetch(['https://example.com/check?res=true', 'https://example.com/check?res=false'], (url, res) => {
+        await doFetch([
+            'https://example.com/check?res=true',
+            'https://example.com/check?res=false',
+        ], {checkResult: false}, (url, res) => {
             result.push(res);
         });
         assert.strictEqual(result.length, 2);
@@ -127,7 +134,7 @@ test('complex url queuing', async (t) => {
             },
             {
                 url: 'https://example.com/post',
-                method: 'post',
+                method: 'POST',
                 params: {
                     params: { test: 'true' },
                     data: { content: 'test' }

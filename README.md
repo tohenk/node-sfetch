@@ -4,14 +4,27 @@ Simultaneously fetch urls using Axios.
 
 ## Usage
 
-This module export `doFetch` function with the following signature:
+This module export `doFetch` function with the following signatures:
 
 ```js
 /**
- * @param {array<string>} queues The queues
+ * @param {array<string|object>} queues The queues
  * @param {completeCallback} callback Queue completion callback
  */
 async function doFetch(queues, callback) {
+}
+```
+
+```js
+/**
+ * @param {array<string|object>} queues The queues
+ * @param {object} options The options
+ * @param {number} options.worker Maximum number of simultaneous workers
+ * @param {boolean} options.checkResult Fire callback only when request is successful or not
+ * @param {Function} options.debug Debugger function
+ * @param {completeCallback} callback Queue completion callback
+ */
+async function doFetch(queues, options, callback) {
 }
 ```
 
@@ -37,7 +50,7 @@ function callback(queue, res, headers) {
 }
 ```
 
-An additional configuration can be used to adjust `doFetch` behavior:
+An additional configuration can be used to adjust `doFetch` behavior globally:
 
 * The number of simultaneous workers by default set to 25 workers. To change the number of workers,
   call `doFetch.setMaxWoker()` with desired value, e.g. `doFetch.setMaxWoker(10)`.

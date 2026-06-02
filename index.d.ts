@@ -25,27 +25,80 @@
 import { Method, AxiosRequestConfig, AxiosResponseHeaders } from "axios";
 
 interface FetchQueue {
+    /**
+     * Queue URL.
+     */
     url: string;
+    /**
+     * Axios request method.
+     */
     method?: Method;
+    /**
+     * Axios request configuration.
+     */
     params?: AxiosRequestConfig;
 }
 
-declare function fetchCallback(
-    queue: string|FetchQueue,
+interface FetchOptions {
+    /**
+     * Maximum number of simultaneous workers (default 25).
+     */
+    worker?: number;
+    /**
+     * If enabled (default), only successfull Axios request will fire the callback.
+     * To force to always fire the callback set to false, be careful to check the
+     * result in the callback.
+     */
+    checkResult?: boolean;
+    /**
+     * Debugger function.
+     */
+    debug?: Function;
+}
+
+type FetchCallback = (
+    queue: string | FetchQueue,
     res: any,
     headers: AxiosResponseHeaders
-): void;
+) => void;
 
+/**
+ * Perform simultaneous fetch.
+ */
 declare function doFetch(
-    queues: Set<string|FetchQueue>,
-    callback: typeof fetchCallback
+    queues: Set<string | FetchQueue>,
+    callback: FetchCallback
+): Promise<void>;
+
+/**
+ * Perform simultaneous fetch.
+ */
+declare function doFetch(
+    queues: Set<string | FetchQueue>,
+    options: FetchOptions,
+    callback: FetchCallback
 ): Promise<void>;
 
 declare namespace doFetch {
+    /**
+     * Get maximum number of simultaneous workers.
+     */
     function getMaxWorker(): number;
+    /**
+     * Set maximum number of simultaneous workers.
+     */
     function setMaxWorker(worker: number): typeof doFetch;
+    /**
+     * Get fire callback only when request is successful or not enabled state.
+     */
     function getCheckResult(): boolean;
+    /**
+     * Set fire callback only when request is successful or not enabled state.
+     */
     function setCheckResult(enabled: boolean): typeof doFetch;
+    /**
+     * Set debugger function.
+     */
     function setDebugger(dbg: Function): typeof doFetch;
 }
 

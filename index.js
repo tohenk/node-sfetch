@@ -22,7 +22,13 @@
  * SOFTWARE.
  */
 
-const axios = require('axios')
+const axios = require('axios');
+
+const defaultConfig = {
+    worker: 25,
+    checkResult: true,
+    debug: null,
+}
 
 /**
  * A callback when fetch queue is completely done.
@@ -36,27 +42,28 @@ const axios = require('axios')
  */
 
 /**
- * @type {number}
- */
-let nworker = 25;
-
-/**
- * @type {boolean}
- */
-let checkResult = true;
-
-/**
- * @type {any}
- */
-let debug;
-
-/**
  * Queued url fetch.
  *
- * @param {array<string>} queues The queues
+ * @param {array<string|object>} queues The queues
+ * @param {object} options The options
+ * @param {number} options.worker Maximum number of simultaneous workers
+ * @param {boolean} options.checkResult Fire callback only when request is successful or not
+ * @param {Function} options.debug Debugger function
  * @param {completeCallback} cb Queue completion callback
  */
-async function doFetch(queues, cb) {
+async function doFetch(queues, options, cb) {
+    if (typeof options === 'function') {
+        cb = options;
+        options = {};
+    }
+    for (const k of Object.keys(defaultConfig)) {
+        if (options[k] === undefined) {
+            options[k] = defaultConfig[k];
+        }
+    }
+    const nworker = options.worker;
+    const checkResult = options.checkResult;
+    const debug = options.debug;
     let finish;
     let n = Math.min(nworker, queues.length);
     const workers = [];
@@ -87,12 +94,12 @@ async function doFetch(queues, cb) {
                     worker();
                 }
                 const url = typeof queue === 'string' ? queue : queue.url;
-                const method = typeof queue === 'object' && queue.method ? queue.method : 'get';
+                const method = typeof queue === 'object' && queue.method ? queue.method.toString().toLowerCase() : 'get';
                 const params = typeof queue === 'object' && queue.params ? queue.params : {};
                 const args = [];
                 if (method !== 'request') {
                     args.push(url);
-                    if (['get', 'delete', 'head', 'options'].indexOf(method) < 0) {
+                    if (!['get', 'delete', 'head', 'options'].includes(method)) {
                         if (params.data !== undefined) {
                             args.push(params.data);
                         }
@@ -138,22 +145,23 @@ async function doFetch(queues, cb) {
 
 Object.assign(doFetch, {
     getMaxWorker() {
-        return nworker;
+        return defaultConfig.worker;
     },
     setMaxWorker(n) {
-        nworker = n;
+        defaultConfig.worker = n;
         return doFetch;
     },
     getCheckResult() {
-        return checkResult;
+        return defaultConfig.checkResult;
     },
     setCheckResult(enabled) {
-        checkResult = enabled;
+        defaultConfig.checkResult = enabled;
         return doFetch;
     },
     setDebugger(dbg) {
-        debug = dbg;
+        defaultConfig.debug = dbg;
         return doFetch;
     }
 });
+
 module.exports = doFetch;
