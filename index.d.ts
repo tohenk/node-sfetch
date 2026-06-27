@@ -28,7 +28,7 @@ interface FetchQueue {
     /**
      * Queue URL.
      */
-    url: string;
+    url: string | FetchFunction;
     /**
      * Axios request method.
      */
@@ -38,6 +38,10 @@ interface FetchQueue {
      */
     params?: AxiosRequestConfig;
 }
+
+type FetchFunction = (
+    queue: FetchQueue | FetchFunction,
+) => Promise<any> | any;
 
 interface FetchOptions {
     /**
@@ -57,16 +61,17 @@ interface FetchOptions {
 }
 
 type FetchCallback = (
-    queue: string | FetchQueue,
-    res: any,
-    headers: AxiosResponseHeaders
+    queue: string | FetchQueue | FetchFunction,
+    res?: any,
+    headers?: AxiosResponseHeaders,
+    req?: object
 ) => void;
 
 /**
  * Perform simultaneous fetch.
  */
 declare function doFetch(
-    queues: Set<string | FetchQueue>,
+    queues: Set<string | FetchQueue | FetchFunction>,
     callback: FetchCallback
 ): Promise<void>;
 
@@ -74,7 +79,7 @@ declare function doFetch(
  * Perform simultaneous fetch.
  */
 declare function doFetch(
-    queues: Set<string | FetchQueue>,
+    queues: Set<string | FetchQueue | FetchFunction>,
     options: FetchOptions,
     callback: FetchCallback
 ): Promise<void>;

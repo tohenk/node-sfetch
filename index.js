@@ -37,8 +37,9 @@ const defaultConfig = {
  *
  * @callback completeCallback
  * @param {string|object} queue Fetched queue which is complete
- * @param {string|object} res Response content returned by axios
- * @param {object} headers Response headers returned by axios
+ * @param {?string|object} res Response content returned by Axios
+ * @param {?object} headers Response headers returned by Axios
+ * @param {?object} req Last request object returned by Axios
  */
 
 /**
@@ -49,11 +50,11 @@ const defaultConfig = {
  * @param {number} options.worker Maximum number of simultaneous workers
  * @param {boolean} options.checkResult Fire callback only when request is successful or not
  * @param {Function} options.debug Debugger function
- * @param {completeCallback} cb Queue completion callback
+ * @param {completeCallback} callback Queue completion callback
  */
-async function doFetch(queues, options, cb) {
+async function doFetch(queues, options, callback) {
     if (typeof options === 'function') {
-        cb = options;
+        callback = options;
         options = {};
     }
     for (const k of Object.keys(defaultConfig)) {
@@ -86,42 +87,17 @@ async function doFetch(queues, options, cb) {
         const worker = () => {
             if (queues.length) {
                 const queue = queues.shift();
-                const done = (res, headers) => {
-                    if ((checkResult && res) || !checkResult) {
-                        cb(queue, res, headers);
+                processQueue(queue, async (res) => {
+                    let data;
+                    if (!(res instanceof axios.AxiosError)) {
+                        data = res.data;
+                    }
+                    if ((checkResult && data) || !checkResult) {
+                        await callOrResolve(callback, queue, data, res.headers, res.request);
                         adjustWorker();
                     }
                     worker();
-                }
-                const url = typeof queue === 'string' ? queue : queue.url;
-                const method = typeof queue === 'object' && queue.method ? queue.method.toString().toLowerCase() : 'get';
-                const params = typeof queue === 'object' && queue.params ? queue.params : {};
-                const args = [];
-                if (method !== 'request') {
-                    args.push(url);
-                    if (!['get', 'delete', 'head', 'options'].includes(method)) {
-                        if (params.data !== undefined) {
-                            args.push(params.data);
-                        }
-                    }
-                } else {
-                    params.url = url;
-                }
-                args.push(params);
-                // request({})
-                // (get|delete|head|options)(url, {})
-                // (post|put|patch|postForm|putForm|patchForm)(url, data, {})
-                if (typeof debug === 'function') {
-                    debug(`fetch %s with %s`, url, JSON.stringify(params));
-                }
-                axios[method](...args)
-                    .then(response => {
-                        done(response.data, response.headers);
-                    })
-                    .catch(err => {
-                        console.error(`Unable to fetch ${url}: ${err.message}!`);
-                        done();
-                    })
+                });
             } else {
                 workers.splice(workers.indexOf(worker), 1);
                 if (workers.length === 0) {
@@ -137,6 +113,58 @@ async function doFetch(queues, options, cb) {
         }
         workers.push(worker);
         worker();
+    }
+    const processQueue = async (queue, done) => {
+        const args = [];
+        /** @type {axios.Method} */
+        const method = typeof queue === 'object' && queue.method ? queue.method.toString().toLowerCase() : 'get';
+        /** @type {axios.AxiosRequestConfig} */
+        const params = typeof queue === 'object' && queue.params ? { ...queue.params } : {};
+        if (params.headers) {
+            params.headers = await callOrResolve(params.headers, queue);
+        }
+        const url = await callOrResolve(typeof queue === 'object' && queue.url ? queue.url : queue, queue);
+        if (!url) {
+            throw new Error('Queue does not contains an URL!');
+        }
+        if (method !== 'request') {
+            args.push(url);
+            if (!['get', 'delete', 'head', 'options'].includes(method)) {
+                if (params.data) {
+                    args.push(await callOrResolve(params.data, queue));
+                    delete params.data;
+                }
+            }
+        } else {
+            params.url = url;
+        }
+        args.push(params);
+        // request({})
+        // (get|delete|head|options)(url, {})
+        // (post|put|patch|postForm|putForm|patchForm)(url, data, {})
+        if (typeof debug === 'function') {
+            debug(`fetch %s with %s`, url, JSON.stringify(params));
+        }
+        axios[method](...args)
+            .then(response => {
+                done(response);
+            })
+            .catch(err => {
+                console.error(`Unable to fetch ${url}: ${err.message}!`);
+                done(err);
+            })
+    }
+    const callOrResolve = async (...args) => {
+        if (args.length) {
+            let data = args.shift();
+            if (typeof data === 'function') {
+                data = data(...args);
+            }
+            if (data instanceof Promise) {
+                data = await data;
+            }
+            return data;
+        }
     }
     if (createWorker()) {
         await new Promise(resolve => finish = resolve);
